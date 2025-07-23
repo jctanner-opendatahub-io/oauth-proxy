@@ -129,6 +129,12 @@ func NewReverseProxy(target *url.URL, opts *Options) (*httputil.ReverseProxy, er
 		}
 		transport.TLSClientConfig = oscrypto.SecureTLSConfig(&tls.Config{RootCAs: pool})
 	}
+	if opts.UpstreamInsecureSkipVerify {
+		if transport.TLSClientConfig == nil {
+			transport.TLSClientConfig = oscrypto.SecureTLSConfig(&tls.Config{})
+		}
+		transport.TLSClientConfig.InsecureSkipVerify = true
+	}
 	if err := http2.ConfigureTransport(transport); err != nil {
 		if len(opts.UpstreamCAs) > 0 {
 			return nil, err
@@ -190,6 +196,12 @@ func NewWebSocketOrRestReverseProxy(u *url.URL, opts *Options, auth hmacauth.Hma
 				log.Fatal("Failed to fetch CertPool: ", err)
 			}
 			wsProxy.TLSClientConfig = oscrypto.SecureTLSConfig(&tls.Config{RootCAs: pool})
+		}
+		if wsScheme == "wss" && opts.UpstreamInsecureSkipVerify {
+			if wsProxy.TLSClientConfig == nil {
+				wsProxy.TLSClientConfig = oscrypto.SecureTLSConfig(&tls.Config{})
+			}
+			wsProxy.TLSClientConfig.InsecureSkipVerify = true
 		}
 
 	}

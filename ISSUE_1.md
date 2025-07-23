@@ -68,56 +68,54 @@ transport := http.DefaultTransport.(*http.Transport).Clone()  // Uses DefaultTra
 - **Development environments**: Self-signed or improperly configured certificates
 - **Enterprise environments**: Complex certificate hierarchies
 
-## Current Workarounds
+## Selected Solution: New Development Flag
 
-### 1. Global Certificate Verification Skip ⚠️ **NOT RECOMMENDED & LIKELY INEFFECTIVE**
-```bash
-./oauth-proxy --upstream=https://odh-gateway.odh.apps-crc.testing --ssl-insecure-skip-verify
-```
-**Problems:**
-- **Likely doesn't fix upstream certificate errors** (only affects `http.DefaultClient`, not upstream proxy transport)
-- Affects OAuth server connections (security risk)
-- May not work for the specific hostname mismatch issue
-- **Needs testing to confirm behavior**
+**Decision**: Implement `--upstream-insecure-skip-verify` flag for development environments.
 
-### 2. Fix Certificate/Hostname Matching ✅ **RECOMMENDED**
-```bash
-# Option A: Use hostname that matches certificate
---upstream=https://odh-gateway-svc.apps-crc.testing
-
-# Option B: Get proper certificate covering the actual hostname
-# Certificate should include: odh-gateway.odh.apps-crc.testing
-```
-
-### 3. Custom CA Certificate (if self-signed)
-```bash
---upstream-ca=/path/to/custom-ca.crt
-```
+**Rationale**: 
+- Current `--ssl-insecure-skip-verify` likely ineffective for upstream connections
+- Need development-focused solution that preserves OAuth security
+- Simple implementation path in existing codebase
 
 ## Proposed Solutions
 
-### Short-term: Configuration Enhancement
+### Short-term: Add Upstream-specific TLS Options
 
-Add per-upstream TLS configuration options:
+#### Recommended Development Flag: `--upstream-insecure-skip-verify`
 
+**Usage:**
 ```bash
-# Proposed new flags (not implemented)
---upstream-tls-server-name=<hostname>     # Override ServerName for certificate verification
---upstream-tls-skip-verify=<true/false>   # Per-upstream skip verification
---upstream-tls-ca=<path>                  # Per-upstream CA (instead of global)
+./oauth-proxy --upstream=https://odh-gateway.odh.apps-crc.testing \
+              --upstream-insecure-skip-verify
 ```
 
-### Medium-term: URL-based Configuration
+**Benefits:**
+- ✅ Scoped to upstream connections only (OAuth server remains secure)
+- ✅ Follows existing naming pattern (`--upstream-ca`, `--upstream-insecure-skip-verify`)
+- ✅ Clear development intent (obviously unsafe for production)
+- ✅ Simple implementation in existing code structure
 
-Support TLS parameters in upstream URLs:
-```bash
-# Proposed syntax (not implemented)
---upstream="https://service:8443?tls-server-name=matching.hostname.com&tls-skip-verify=false"
+**Implementation Location:**
+- **File**: `options.go` - Add flag and struct field
+- **File**: `oauthproxy.go` (lines ~124-131) - Modify TLS config:
+
+```go
+// After existing upstream CA logic
+if opts.UpstreamInsecureSkipVerify {
+    if transport.TLSClientConfig == nil {
+        transport.TLSClientConfig = oscrypto.SecureTLSConfig(&tls.Config{})
+    }
+    transport.TLSClientConfig.InsecureSkipVerify = true
+}
 ```
 
-### Long-term: Complete TLS Configuration Overhaul
+## Implementation Plan
 
-**File modifications needed**: `oauthproxy.go`, `options.go`
+**Target**: `--upstream-insecure-skip-verify` flag for development use
+
+**Files to modify**:
+1. **`options.go`** - Add flag definition and struct field
+2. **`oauthproxy.go`** - Implement TLS config modification (lines ~124-131)
 
 ```go
 // Proposed enhancement (not implemented)

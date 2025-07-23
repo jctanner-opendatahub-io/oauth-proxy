@@ -102,6 +102,7 @@ func main() {
 
 	flagSet.String("signature-key", "", "GAP-Signature request signature key (algorithm:secretkey)")
 	flagSet.Var(upstreamCAs, "upstream-ca", "paths to CA roots for the Upstream (target) Server (may be given multiple times, defaults to system trust store).")
+	flagSet.Bool("upstream-insecure-skip-verify", false, "skip TLS certificate verification for upstream connections (development only - insecure)")
 
 	flagSet.Duration("upstream-timeout", DefaultUpstreamTimeout, "maximum amount of time the server will wait for a response from the upstream")
 

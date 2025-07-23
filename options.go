@@ -91,8 +91,9 @@ type Options struct {
 	ApprovalPrompt string `flag:"approval-prompt" cfg:"approval_prompt"`
 	RequestLogging bool   `flag:"request-logging" cfg:"request_logging"`
 
-	SignatureKey string   `flag:"signature-key" cfg:"signature_key" env:"OAUTH2_PROXY_SIGNATURE_KEY"`
-	UpstreamCAs  []string `flag:"upstream-ca" cfg:"upstream_ca"`
+	SignatureKey             string   `flag:"signature-key" cfg:"signature_key" env:"OAUTH2_PROXY_SIGNATURE_KEY"`
+	UpstreamCAs              []string `flag:"upstream-ca" cfg:"upstream_ca"`
+	UpstreamInsecureSkipVerify bool     `flag:"upstream-insecure-skip-verify" cfg:"upstream_insecure_skip_verify"`
 
 	// An optional, absolute URL to redirect web browsers to after logging out of
 	// the console. If not specified, it will redirect to the default login page.
