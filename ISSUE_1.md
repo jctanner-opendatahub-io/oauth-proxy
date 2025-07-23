@@ -40,7 +40,26 @@ if len(opts.UpstreamCAs) > 0 {
 
 The OAuth proxy only supports:
 - ✅ `--upstream-ca`: Custom CA certificates
-- ✅ `--ssl-insecure-skip-verify`: Global certificate verification skip (security risk)
+- ⚠️ `--ssl-insecure-skip-verify`: Global certificate verification skip (likely ineffective for upstream connections)
+
+### Why `--ssl-insecure-skip-verify` Doesn't Help
+
+**Code Analysis** (`options.go` lines 321-326):
+```go
+if o.SSLInsecureSkipVerify {
+    insecureTransport := &http.Transport{
+        TLSClientConfig: oscrypto.SecureTLSConfig(&tls.Config{InsecureSkipVerify: true}),
+    }
+    http.DefaultClient = &http.Client{Transport: insecureTransport}  // Only affects DefaultClient
+}
+```
+
+**Upstream Connection Code** (`oauthproxy.go` lines 115-125):
+```go
+transport := http.DefaultTransport.(*http.Transport).Clone()  // Uses DefaultTransport, not DefaultClient
+```
+
+**Result**: The flag modifies `http.DefaultClient` but upstream connections use a clone of `http.DefaultTransport` - these are separate transports in Go.
 
 ## Impact
 
@@ -51,14 +70,15 @@ The OAuth proxy only supports:
 
 ## Current Workarounds
 
-### 1. Global Certificate Verification Skip ⚠️ **NOT RECOMMENDED**
+### 1. Global Certificate Verification Skip ⚠️ **NOT RECOMMENDED & LIKELY INEFFECTIVE**
 ```bash
 ./oauth-proxy --upstream=https://odh-gateway.odh.apps-crc.testing --ssl-insecure-skip-verify
 ```
 **Problems:**
-- Affects ALL HTTPS connections (including OpenShift OAuth server)
-- Major security vulnerability
-- Global impact on entire proxy
+- **Likely doesn't fix upstream certificate errors** (only affects `http.DefaultClient`, not upstream proxy transport)
+- Affects OAuth server connections (security risk)
+- May not work for the specific hostname mismatch issue
+- **Needs testing to confirm behavior**
 
 ### 2. Fix Certificate/Hostname Matching ✅ **RECOMMENDED**
 ```bash
